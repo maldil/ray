@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import math
-
+import numpy as np
 from ray.serve.config import AutoscalingConfig
 from ray.serve.constants import CONTROL_LOOP_PERIOD_S
 
@@ -29,7 +29,7 @@ def calculate_desired_num_replicas(
         raise ValueError("Number of replicas cannot be zero")
 
     # The number of ongoing requests per replica, averaged over all replicas.
-    num_ongoing_requests_per_replica: float = sum(current_num_ongoing_requests) / len(
+    num_ongoing_requests_per_replica: float = np.mean(
         current_num_ongoing_requests
     )
 
