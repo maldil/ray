@@ -1,7 +1,7 @@
 import abc
 import inspect
 import logging
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union
 
 import ray
 from ray.air._internal.config import ensure_only_allowed_dataclass_keys_updated
@@ -27,7 +27,7 @@ GenDataset = Union["Dataset", Callable[[], "Dataset"]]
 logger = logging.getLogger(__name__)
 
 
-@PublicAPI(stability="alpha")
+@PublicAPI(stability="beta")
 class TrainingFailedError(RuntimeError):
     """An error indicating that training has failed."""
 
@@ -43,20 +43,20 @@ class BaseTrainer(abc.ABC):
 
     How does a trainer work?
 
-        - First, initialize the Trainer. The initialization runs locally,
-          so heavyweight setup should not be done in __init__.
-        - Then, when you call ``trainer.fit()``, the Trainer is serialized
-          and copied to a remote Ray actor. The following methods are then
-          called in sequence on the remote actor.
-        - ``trainer.setup()``: Any heavyweight Trainer setup should be
-          specified here.
-        - ``trainer.preprocess_datasets()``: The provided
-          ray.data.Dataset are preprocessed with the provided
-          ray.data.Preprocessor.
-        - ``trainer.train_loop()``: Executes the main training logic.
-        - Calling ``trainer.fit()`` will return a ``ray.result.Result``
-          object where you can access metrics from your training run, as well
-          as any checkpoints that may have been saved.
+    - First, initialize the Trainer. The initialization runs locally,
+      so heavyweight setup should not be done in __init__.
+    - Then, when you call ``trainer.fit()``, the Trainer is serialized
+      and copied to a remote Ray actor. The following methods are then
+      called in sequence on the remote actor.
+    - ``trainer.setup()``: Any heavyweight Trainer setup should be
+      specified here.
+    - ``trainer.preprocess_datasets()``: The provided
+      ray.data.Dataset are preprocessed with the provided
+      ray.data.Preprocessor.
+    - ``trainer.train_loop()``: Executes the main training logic.
+    - Calling ``trainer.fit()`` will return a ``ray.result.Result``
+      object where you can access metrics from your training run, as well
+      as any checkpoints that may have been saved.
 
     **How do I create a new Trainer?**
 
@@ -159,6 +159,27 @@ class BaseTrainer(abc.ABC):
         self.resume_from_checkpoint = resume_from_checkpoint
 
         self._validate_attributes()
+
+    def __repr__(self):
+        # A dictionary that maps parameters to their default values.
+        default_values: Dict[str, Any] = {
+            "scaling_config": ScalingConfig(),
+            "run_config": RunConfig(),
+            "datasets": {},
+            "preprocessor": None,
+            "resume_from_checkpoint": None,
+        }
+
+        non_default_arguments = []
+        for parameter, default_value in default_values.items():
+            value = getattr(self, parameter)
+            if value != default_value:
+                non_default_arguments.append(f"{parameter}={value!r}")
+
+        if non_default_arguments:
+            return f"<{self.__class__.__name__} {' '.join(non_default_arguments)}>"
+
+        return f"<{self.__class__.__name__}>"
 
     def __new__(cls, *args, **kwargs):
         """Store the init args as attributes so this can be merged with Tune hparams."""
@@ -301,7 +322,7 @@ class BaseTrainer(abc.ABC):
         """
         raise NotImplementedError
 
-    @PublicAPI(stability="alpha")
+    @PublicAPI(stability="beta")
     def fit(self) -> Result:
         """Runs training.
 
